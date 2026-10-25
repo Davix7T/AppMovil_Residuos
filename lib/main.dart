@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'services/clasificador_residuos.dart';
+
 void main() {
   runApp(const EcoSoftApp());
 }
@@ -65,6 +67,8 @@ class EcoHome extends StatefulWidget {
 class _EcoHomeState extends State<EcoHome> {
   int pagina = 0;
   final ImagePicker picker = ImagePicker();
+  final ClasificadorResiduos clasificador = ClasificadorResiduos();
+  bool modeloCargado = false;
 
   Uint8List? imagen;
   String nombreImagen = '';
@@ -72,6 +76,43 @@ class _EcoHomeState extends State<EcoHome> {
 
   // En esta etapa guardamos los registros solo en memoria.
   final List<EcoRegistro> historial = [];
+
+
+
+  Future<void> probarCargaModelo() async {
+    if (cargando) return;
+
+    setState(() => cargando = true);
+
+    try {
+      await clasificador.cargarModelo();
+
+      if (!mounted) return;
+
+      setState(() => modeloCargado = true);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('¡Modelo de residuos cargado correctamente!'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cargar el modelo: $e'),
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => cargando = false);
+      }
+    }
+  }
+
+
 
   Future<void> seleccionarImagen(ImageSource source) async {
     try {
@@ -424,6 +465,29 @@ class _EcoHomeState extends State<EcoHome> {
             minimumSize: const Size.fromHeight(54),
           ),
         ),
+
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: cargando ? null : probarCargaModelo,
+          icon: const Icon(Icons.memory),
+          label: Text(
+            cargando
+                ? 'Cargando modelo...'
+                : modeloCargado
+                    ? 'Modelo cargado ✓'
+                    : 'Probar carga del modelo',
+          ),
+        ),
+        if (modeloCargado)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              'Modelo listo para la siguiente etapa de clasificación.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.green),
+            ),
+          ),
+
         if (imagen != null) ...[
           const SizedBox(height: 12),
           OutlinedButton.icon(
