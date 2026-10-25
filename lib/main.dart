@@ -70,6 +70,8 @@ class _EcoHomeState extends State<EcoHome> {
   final ClasificadorResiduos clasificador = ClasificadorResiduos();
   bool modeloCargado = false;
 
+  ResultadoResiduo? resultado;
+
   Uint8List? imagen;
   String nombreImagen = '';
   bool cargando = false;
@@ -111,8 +113,6 @@ class _EcoHomeState extends State<EcoHome> {
       }
     }
   }
-
-
 
   Future<void> seleccionarImagen(ImageSource source) async {
     try {
@@ -191,6 +191,50 @@ class _EcoHomeState extends State<EcoHome> {
       ),
     );
   }
+
+  Future<void> analizarImagen() async {
+  if (imagen == null || cargando) return;
+
+  if (!clasificador.modeloCargado) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Primero debes cargar el modelo.'),
+      ),
+    );
+    return;
+  }
+
+  setState(() {
+    cargando = true;
+    resultado = null;
+  });
+
+  try {
+    final resultadoObtenido =
+        clasificador.clasificarImagen(imagen!);
+
+    if (!mounted) return;
+
+    setState(() {
+      resultado = resultadoObtenido;
+    });
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('No se pudo analizar la imagen: $e'),
+        duration: const Duration(seconds: 8),
+      ),
+    );
+  } finally {
+    if (mounted) {
+      setState(() {
+        cargando = false;
+      });
+    }
+  }
+}
 
   void guardarEjemplo() {
     if (imagen == null) return;
@@ -512,6 +556,49 @@ class _EcoHomeState extends State<EcoHome> {
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.black54, fontSize: 12),
           ),
+          ElevatedButton.icon(
+            onPressed: cargando ? null : analizarImagen,
+            icon: const Icon(Icons.search),
+            label: Text(
+              cargando ? 'Analizando...' : 'Analizar residuo',
+            ),
+          ),
+          if (resultado != null) ...[
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.check_circle_outline,
+                      color: Color(0xFF10B981),
+                      size: 40,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Residuo identificado',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      clasificador.nombreEnEspanol(
+                        resultado!.etiqueta,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ],
     );

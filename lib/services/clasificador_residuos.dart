@@ -1,6 +1,7 @@
 
+import 'dart:typed_data';
 import 'package:flutter_litert/flutter_litert.dart';
-import 'dart:developer' as developer;
+import 'package:image/image.dart' as img;
 
 class ResultadoResiduo {
   final String etiqueta;
@@ -33,20 +34,94 @@ class ClasificadorResiduos {
 
   Interpreter? _interpreter;
 
+  bool get modeloCargado => _interpreter != null;
+
   Future<void> cargarModelo() async {
+    if (_interpreter != null) return;
+
     await initializeWeb();
 
-    _interpreter = await Interpreter.fromAsset(rutaModelo);
-    _interpreter!.allocateTensors();
+    final interpreter =
+        await Interpreter.fromAsset(rutaModelo);
 
-    final entrada = _interpreter!.getInputTensor(0);
-    final salida = _interpreter!.getOutputTensor(0);
+    interpreter.allocateTensors();
 
-    developer.log('Modelo cargado correctamente.');
-    developer.log('Forma de entrada: ${entrada.shape}');
-    developer.log('Tipo de entrada: ${entrada.type}');
-    developer.log('Forma de salida: ${salida.shape}');
-    developer.log('Tipo de salida: ${salida.type}');
+    final entrada = interpreter.getInputTensor(0);
+    final salida = interpreter.getOutputTensor(0);
+
+    if (entrada.shape.toString() != '[1, 224, 224, 3]' ||
+        salida.shape.toString() != '[1, 12]') {
+      interpreter.close();
+      throw StateError(
+        'Las dimensiones del modelo no coinciden '
+        'con las esperadas.',
+      );
+    }
+
+    _interpreter = interpreter;
+  }
+
+  ResultadoResiduo clasificarImagen(Uint8List bytes) {
+    final interpreter = _interpreter;
+
+    if (interpreter == null) {
+      throw StateError(
+        'Primero debes cargar el modelo.',
+      );
+    }
+
+    final img.Image? imagenOriginal = img.decodeImage(bytes);
+
+    if (imagenOriginal == null) {
+      throw FormatException(
+        'No se pudo leer la imagen seleccionada.',
+      );
+    }
+
+    final img.Image imagenRedimensionada = img.copyResize(
+      imagenOriginal,
+      width: 224,
+      height: 224,
+    );
+
+    final entrada = [
+      List.generate(
+        224,
+        (y) => List.generate(
+          224,
+          (x) {
+            final pixel = imagenRedimensionada.getPixel(x, y);
+
+            return [
+              pixel.r.toDouble() / 255.0,
+              pixel.g.toDouble() / 255.0,
+              pixel.b.toDouble() / 255.0,
+            ];
+          },
+        ),
+      ),
+    ];
+
+    final salida = [
+      List<double>.filled(etiquetas.length, 0.0),
+    ];
+
+    interpreter.run(entrada, salida);
+
+    final puntuaciones = salida[0];
+
+    int indiceMayor = 0;
+
+    for (int i = 1; i < puntuaciones.length; i++) {
+      if (puntuaciones[i] > puntuaciones[indiceMayor]) {
+        indiceMayor = i;
+      }
+    }
+
+    return ResultadoResiduo(
+      etiqueta: etiquetas[indiceMayor],
+      confianza: puntuaciones[indiceMayor],
+    );
   }
 
   void cerrar() {
