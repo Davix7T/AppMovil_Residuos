@@ -49,11 +49,13 @@ class EcoRegistro {
   final String nombre;
   final String contenedor;
   final DateTime fecha;
+  final Uint8List imagen;
 
   EcoRegistro({
     required this.nombre,
     required this.contenedor,
     required this.fecha,
+    required this.imagen,
   });
 }
 
@@ -78,7 +80,6 @@ class _EcoHomeState extends State<EcoHome> {
 
   // En esta etapa guardamos los registros solo en memoria.
   final List<EcoRegistro> historial = [];
-
 
 
   Future<void> probarCargaModelo() async {
@@ -106,6 +107,54 @@ class _EcoHomeState extends State<EcoHome> {
           content: Text('Error al cargar el modelo: $e'),
           duration: const Duration(seconds: 8),
         ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => cargando = false);
+      }
+    }
+  }
+
+  Future<void> analizarImagen() async {
+    if (imagen == null || cargando) return;
+
+    if (!clasificador.modeloCargado) {
+      try {
+        setState(() => cargando = true);
+        await clasificador.cargarModelo();
+      } catch (e) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar el modelo: $e')),
+        );
+        return;
+      } finally {
+        if (mounted) {
+          setState(() => cargando = false);
+        }
+      }
+    }
+
+    setState(() {
+      cargando = true;
+      resultado = null;
+    });
+
+    try {
+      final resultadoObtenido =
+          clasificador.clasificarImagen(imagen!);
+
+      if (!mounted) return;
+
+      setState(() {
+        resultado = resultadoObtenido;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al analizar: $e')),
       );
     } finally {
       if (mounted) {
@@ -192,72 +241,32 @@ class _EcoHomeState extends State<EcoHome> {
     );
   }
 
-  Future<void> analizarImagen() async {
-  if (imagen == null || cargando) return;
+  void guardarClasificacion() {
+    if (imagen == null || resultado == null) return;
 
-  if (!clasificador.modeloCargado) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Primero debes cargar el modelo.'),
-      ),
-    );
-    return;
-  }
-
-  setState(() {
-    cargando = true;
-    resultado = null;
-  });
-
-  try {
-    final resultadoObtenido =
-        clasificador.clasificarImagen(imagen!);
-
-    if (!mounted) return;
-
-    setState(() {
-      resultado = resultadoObtenido;
-    });
-  } catch (e) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('No se pudo analizar la imagen: $e'),
-        duration: const Duration(seconds: 8),
-      ),
-    );
-  } finally {
-    if (mounted) {
-      setState(() {
-        cargando = false;
-      });
-    }
-  }
-}
-
-  void guardarEjemplo() {
-    if (imagen == null) return;
+    final nombreResiduo =
+        clasificador.nombreEnEspanol(resultado!.etiqueta);
 
     setState(() {
       historial.insert(
         0,
         EcoRegistro(
-          nombre: 'Imagen pendiente de analizar',
-          contenedor: 'Por determinar',
+          nombre: nombreResiduo,
+          contenedor: 'Categoría: $nombreResiduo',
           fecha: DateTime.now(),
+          imagen: Uint8List.fromList(imagen!),
         ),
       );
+
       imagen = null;
       nombreImagen = '';
+      resultado = null;
       pagina = 2;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text(
-          'Registro de prueba guardado. Aún no es una clasificación real.',
-        ),
+        content: Text('Clasificación guardada en tu historial.'),
       ),
     );
   }
@@ -545,17 +554,51 @@ class _EcoHomeState extends State<EcoHome> {
             label: const Text('Elegir otra imagen'),
           ),
           const SizedBox(height: 12),
-          FilledButton(
-            onPressed: guardarEjemplo,
-            child: const Text('Guardar registro de prueba'),
+          FilledButton.icon(
+            onPressed: cargando ? null : analizarImagen,
+            icon: const Icon(Icons.search),
+            label: Text(
+              cargando ? 'Analizando...' : 'Analizar residuo',
+            ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'La imagen todavía no ha sido analizada. '
-            'La identificación automática se implementará después.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.black54, fontSize: 12),
-          ),
+          if (resultado != null) ...[
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.check_circle,
+                      color: verde,
+                      size: 42,
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Residuo identificado',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      clasificador.nombreEnEspanol(resultado!.etiqueta),
+                      style: const TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.bold,
+                        color: texto,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: guardarClasificacion,
+                      icon: const Icon(Icons.save_outlined),
+                      label: const Text('Guardar en historial'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           ElevatedButton.icon(
             onPressed: cargando ? null : analizarImagen,
             icon: const Icon(Icons.search),
@@ -563,42 +606,7 @@ class _EcoHomeState extends State<EcoHome> {
               cargando ? 'Analizando...' : 'Analizar residuo',
             ),
           ),
-          if (resultado != null) ...[
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    const Icon(
-                      Icons.check_circle_outline,
-                      color: Color(0xFF10B981),
-                      size: 40,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Residuo identificado',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      clasificador.nombreEnEspanol(
-                        resultado!.etiqueta,
-                      ),
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+         
         ],
       ],
     );
@@ -647,9 +655,14 @@ class _EcoHomeState extends State<EcoHome> {
           ...historial.map(
             (registro) => Card(
               child: ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFD1FAE5),
-                  child: Icon(Icons.recycling, color: Color(0xFF047857)),
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.memory(
+                    registro.imagen,
+                    width: 55,
+                    height: 55,
+                    fit: BoxFit.cover,
+                  ),
                 ),
                 title: Text(registro.nombre),
                 subtitle: Text(
