@@ -588,6 +588,41 @@ class _EcoHomeState extends State<EcoHome> {
                         color: texto,
                       ),
                     ),
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(top: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5E9),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.lightbulb_outline, color: Color(0xFF2E7D32)),
+                              SizedBox(width: 8),
+                              Text(
+                                'Recomendación EcoSoft',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            obtenerRecomendacion(resultado!.etiqueta),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     FilledButton.icon(
                       onPressed: guardarClasificacion,
@@ -678,4 +713,42 @@ class _EcoHomeState extends State<EcoHome> {
       ],
     );
   }
+
+  String obtenerRecomendacion(String etiqueta) {
+    switch (etiqueta.toLowerCase()) {
+      case 'battery':
+        return 'Separa las baterías de los residuos comunes. Llévalas a un punto de recolección especializado.';
+
+      case 'biological':
+        return 'Separa los restos orgánicos. Puedes consultar opciones de compostaje disponibles en tu localidad.';
+
+      case 'brown-glass':
+      case 'green-glass':
+      case 'white-glass':
+        return 'Separa los envases de vidrio. Procura entregarlos vacíos y consulta las indicaciones de recolección de tu localidad.';
+
+      case 'cardboard':
+        return 'Pliega el cartón y procura que esté limpio y seco antes de entregarlo para aprovechamiento.';
+
+      case 'clothes':
+      case 'shoes':
+        return 'Si están en buen estado, considera reutilizarlos o donarlos. Si no, busca un punto de recolección textil.';
+
+      case 'metal':
+        return 'Separa los residuos metálicos y entrégalos limpios cuando sea posible.';
+
+      case 'paper':
+        return 'Mantén el papel limpio y seco para facilitar su aprovechamiento.';
+
+      case 'plastic':
+        return 'Vacía los envases plásticos y procura entregarlos limpios y secos para facilitar su reciclaje.';
+
+      case 'trash':
+        return 'Este residuo no tiene una categoría de aprovechamiento identificada. Consulta las opciones de disposición de tu localidad.';
+
+      default:
+        return 'Consulta las indicaciones locales para realizar una separación adecuada.';
+    }
+  }
+
 }
