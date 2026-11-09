@@ -2,6 +2,7 @@
 import 'dart:typed_data';
 import 'package:flutter_litert/flutter_litert.dart';
 import 'package:image/image.dart' as img;
+import 'package:flutter/foundation.dart';
 
 class ResultadoResiduo {
   final String etiqueta;
@@ -109,6 +110,26 @@ class ClasificadorResiduos {
     interpreter.run(entrada, salida);
 
     final puntuaciones = salida[0];
+
+    final indices = List.generate(
+      puntuaciones.length,
+      (i) => i,
+    )..sort(
+        (a, b) => puntuaciones[b].compareTo(puntuaciones[a]),
+      );
+
+    debugPrint('--- RESULTADOS DEL MODELO ---');
+    debugPrint(
+      'Suma de puntuaciones: '
+      '${puntuaciones.reduce((a, b) => a + b)}',
+    );
+
+    for (final i in indices.take(3)) {
+      debugPrint(
+        '${etiquetas[i]}: '
+        '${(puntuaciones[i] * 100).toStringAsFixed(2)}%',
+      );
+    }
 
     int indiceMayor = 0;
 

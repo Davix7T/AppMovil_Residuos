@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'services/clasificador_residuos.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'camara_en_vivo.dart';
 
 void main() {
   runApp(const EcoSoftApp());
@@ -48,15 +51,39 @@ class EcoSoftApp extends StatelessWidget {
 class EcoRegistro {
   final String nombre;
   final String contenedor;
+  final String recomendacion;
   final DateTime fecha;
   final Uint8List imagen;
 
   EcoRegistro({
     required this.nombre,
     required this.contenedor,
+    required this.recomendacion,
     required this.fecha,
     required this.imagen,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'nombre': nombre,
+      'contenedor': contenedor,
+      'recomendacion': recomendacion,
+      'fecha': fecha.toIso8601String(),
+      'imagen': base64Encode(imagen),
+    };
+  }
+
+  factory EcoRegistro.fromJson(Map<String, dynamic> json) {
+    return EcoRegistro(
+      nombre: json['nombre'],
+      contenedor: json['contenedor'],
+      recomendacion: json['recomendacion'],
+      fecha: DateTime.parse(json['fecha']),
+      imagen: Uint8List.fromList(
+        base64Decode(json['imagen']),
+      ),
+    );
+  }
 }
 
 class EcoHome extends StatefulWidget {
@@ -244,17 +271,19 @@ class _EcoHomeState extends State<EcoHome> {
   void guardarClasificacion() {
     if (imagen == null || resultado == null) return;
 
-    final nombreResiduo =
+    //final nombreResiduo =
         clasificador.nombreEnEspanol(resultado!.etiqueta);
+        
 
     setState(() {
       historial.insert(
         0,
         EcoRegistro(
-          nombre: nombreResiduo,
-          contenedor: 'Categoría: $nombreResiduo',
+          nombre: clasificador.nombreEnEspanol(resultado!.etiqueta),
+          contenedor: obtenerContenedor(resultado!.etiqueta),
+          recomendacion: obtenerRecomendacion(resultado!.etiqueta),
           fecha: DateTime.now(),
-          imagen: Uint8List.fromList(imagen!),
+          imagen: imagen!,
         ),
       );
 
@@ -263,12 +292,59 @@ class _EcoHomeState extends State<EcoHome> {
       resultado = null;
       pagina = 2;
     });
+    guardarHistorialLocal();
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Clasificación guardada en tu historial.'),
       ),
     );
+  }
+
+  Future<void> cargarHistorial() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final datos = prefs.getString('historial_ecosoft');
+
+      if (datos == null) return;
+
+      final List<dynamic> registros = jsonDecode(datos);
+
+      if (!mounted) return;
+
+      setState(() {
+        historial.clear();
+
+        historial.addAll(
+          registros.map((registro) => EcoRegistro.fromJson(registro)),
+        );
+      });
+    } catch (e) {
+      debugPrint('Error al cargar historial: $e');
+    }
+  }
+
+  Future<void> guardarHistorialLocal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      final datos = historial
+          .map((registro) => registro.toJson())
+          .toList();
+
+      await prefs.setString(
+        'historial_ecosoft',
+        jsonEncode(datos),
+      );
+    } catch (e) {
+      debugPrint('Error al guardar historial: $e');
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    cargarHistorial();
   }
 
   @override
@@ -518,6 +594,18 @@ class _EcoHomeState extends State<EcoHome> {
             minimumSize: const Size.fromHeight(54),
           ),
         ),
+        ElevatedButton.icon(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CamaraEnVivo(),
+              ),
+            );
+          },
+          icon: const Icon(Icons.videocam),
+          label: const Text('Cámara en vivo'),
+        ),
 
         const SizedBox(height: 12),
         OutlinedButton.icon(
@@ -586,6 +674,17 @@ class _EcoHomeState extends State<EcoHome> {
                         fontSize: 23,
                         fontWeight: FontWeight.bold,
                         color: texto,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    Text(
+                      'Confianza del modelo: '
+                      '${(resultado!.confianza * 100).toStringAsFixed(1)}%',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     Container(
@@ -691,7 +790,7 @@ class _EcoHomeState extends State<EcoHome> {
             (registro) => Card(
               child: ListTile(
                 leading: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                   child: Image.memory(
                     registro.imagen,
                     width: 55,
@@ -699,13 +798,32 @@ class _EcoHomeState extends State<EcoHome> {
                     fit: BoxFit.cover,
                   ),
                 ),
+
                 title: Text(registro.nombre),
-                subtitle: Text(
-                  '${registro.contenedor}\n'
-                  '${registro.fecha.day}/'
-                  '${registro.fecha.month}/'
-                  '${registro.fecha.year}',
+
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${registro.contenedor}\n'
+                      '${registro.fecha.day}/'
+                      '${registro.fecha.month}/'
+                      '${registro.fecha.year}',
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    Text(
+                      registro.recomendacion,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.black54,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
                 ),
+
                 isThreeLine: true,
               ),
             ),
@@ -751,4 +869,30 @@ class _EcoHomeState extends State<EcoHome> {
     }
   }
 
+  String obtenerContenedor(String etiqueta) {
+  switch (etiqueta.toLowerCase()) {
+    case 'battery':
+      return 'Recolección especial';
+
+    case 'biological':
+      return 'Residuos orgánicos';
+
+    case 'brown-glass':
+    case 'green-glass':
+    case 'white-glass':
+    case 'cardboard':
+    case 'metal':
+    case 'paper':
+    case 'plastic':
+      return 'Material aprovechable';
+
+    case 'clothes':
+    case 'shoes':
+      return 'Reutilización o recolección textil';
+
+    case 'trash':
+    default:
+      return 'Residuos no aprovechables';
+  }
+}
 }
