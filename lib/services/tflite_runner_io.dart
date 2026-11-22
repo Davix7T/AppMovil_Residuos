@@ -37,7 +37,10 @@ class _RunnerNativo implements TfliteRunner {
     _hilos = hilos;
 
     final opciones = InterpreterOptions()..threads = hilos;
-    final interprete = await Interpreter.fromAsset(rutaAsset, options: opciones);
+    final interprete = await Interpreter.fromAsset(
+      rutaAsset,
+      options: opciones,
+    );
     interprete.allocateTensors();
 
     final entrada = interprete.getInputTensor(0).shape;

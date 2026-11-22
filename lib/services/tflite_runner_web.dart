@@ -45,10 +45,16 @@ class _RunnerWeb implements TfliteRunner {
     _salida = formaSalidaEsperada;
 
     final datos = await rootBundle.load(rutaAsset);
-    final bytes = datos.buffer.asUint8List(datos.offsetInBytes, datos.lengthInBytes);
+    final bytes = datos.buffer.asUint8List(
+      datos.offsetInBytes,
+      datos.lengthInBytes,
+    );
 
     try {
-      final lrt = await LiteRtInterpreter.fromBytes(bytes, accelerator: 'webgpu');
+      final lrt = await LiteRtInterpreter.fromBytes(
+        bytes,
+        accelerator: 'webgpu',
+      );
       _lrt = lrt;
       _backend = lrt.activeAccelerator == 'webgpu'
           ? 'LiteRT.js WebGPU'
@@ -64,7 +70,10 @@ class _RunnerWeb implements TfliteRunner {
   Future<void> ejecutar(Float32List entrada, Float32List salida) async {
     final lrt = _lrt;
     if (lrt != null) {
-      await lrt.runForMultipleInputs(<Object>[entrada], <int, Object>{0: salida});
+      await lrt.runForMultipleInputs(
+        <Object>[entrada],
+        <int, Object>{0: salida},
+      );
       return;
     }
     final js = _tfliteJs;
@@ -72,7 +81,10 @@ class _RunnerWeb implements TfliteRunner {
       throw StateError('El modelo no está cargado.');
     }
     // tflite-js solo rellena destinos ByteBuffer "en sitio".
-    js.runForMultipleInputs(<Object>[entrada.buffer], <int, Object>{0: salida.buffer});
+    js.runForMultipleInputs(
+      <Object>[entrada.buffer],
+      <int, Object>{0: salida.buffer},
+    );
   }
 
   @override

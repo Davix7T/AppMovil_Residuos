@@ -121,7 +121,9 @@ class _CamaraEnVivoState extends State<CamaraEnVivo> {
     try {
       final p = imagen.planes;
       if (p.length < 3) {
-        throw StateError('Formato de cámara no soportado (${p.length} planos).');
+        throw StateError(
+          'Formato de cámara no soportado (${p.length} planos).',
+        );
       }
       // La conversión es síncrona: se hace ANTES del primer await, mientras
       // los bytes del fotograma siguen siendo válidos.
@@ -187,7 +189,9 @@ class _CamaraEnVivoState extends State<CamaraEnVivo> {
       final fotograma = await codec.getNextFrame();
       final imagen = fotograma.image;
       try {
-        final datos = await imagen.toByteData(format: ui.ImageByteFormat.rawRgba);
+        final datos = await imagen.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        );
         if (datos == null) {
           throw StateError('No se pudo leer la imagen capturada.');
         }
@@ -244,7 +248,8 @@ class _CamaraEnVivoState extends State<CamaraEnVivo> {
     // Antes del primer fotograma: la misma regla que usa CameraPreview.
     final o = c.value.lockedCaptureOrientation ?? c.value.deviceOrientation;
     final horizontal =
-        o == DeviceOrientation.landscapeLeft || o == DeviceOrientation.landscapeRight;
+        o == DeviceOrientation.landscapeLeft ||
+        o == DeviceOrientation.landscapeRight;
     return horizontal ? c.value.aspectRatio : 1 / c.value.aspectRatio;
   }
 
@@ -272,23 +277,23 @@ class _CamaraEnVivoState extends State<CamaraEnVivo> {
               ),
             )
           : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      'Error al abrir la cámara:\n$_error',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
-              : _controller != null && _controller!.value.isInitialized
-                  ? Column(
-                      children: [
-                        Expanded(child: _vista(_controller!)),
-                        _panel(),
-                      ],
-                    )
-                  : const Center(child: Text('Cámara no disponible')),
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'Error al abrir la cámara:\n$_error',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          : _controller != null && _controller!.value.isInitialized
+          ? Column(
+              children: [
+                Expanded(child: _vista(_controller!)),
+                _panel(),
+              ],
+            )
+          : const Center(child: Text('Cámara no disponible')),
     );
   }
 
@@ -326,7 +331,10 @@ class _CamaraEnVivoState extends State<CamaraEnVivo> {
                   right: 0,
                   child: Center(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black54,
                         borderRadius: BorderRadius.circular(20),
@@ -429,7 +437,10 @@ class _CamaraEnVivoState extends State<CamaraEnVivo> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(d.titulo, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  d.titulo,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 Text(
                   '${d.contenedor.nombre} · ${d.contenedor.descripcion}',
                   style: const TextStyle(fontSize: 12, color: Colors.black54),

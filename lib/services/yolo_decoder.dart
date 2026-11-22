@@ -37,11 +37,20 @@ class CajaDeteccion {
   double get alto => abajo - arriba;
   double get area => (ancho < 0 ? 0 : ancho) * (alto < 0 ? 0 : alto);
 
-  double iou(CajaDeteccion o) => iouCajas(izq, arriba, der, abajo, o.izq, o.arriba, o.der, o.abajo);
+  double iou(CajaDeteccion o) =>
+      iouCajas(izq, arriba, der, abajo, o.izq, o.arriba, o.der, o.abajo);
 }
 
-double iouCajas(double aI, double aA, double aD, double aB, double bI,
-    double bA, double bD, double bB) {
+double iouCajas(
+  double aI,
+  double aA,
+  double aD,
+  double aB,
+  double bI,
+  double bA,
+  double bD,
+  double bB,
+) {
   final x1 = aI > bI ? aI : bI;
   final y1 = aA > bA ? aA : bA;
   final x2 = aD < bD ? aD : bD;
@@ -95,14 +104,17 @@ class DecodificadorYolo {
       var mejor = -1;
       var mejorP = 0.0;
       for (var c = 0; c < nc; c++) {
-        final p = canalPrimero ? salida[(4 + c) * anclas + i] : salida[i * canales + 4 + c];
+        final p = canalPrimero
+            ? salida[(4 + c) * anclas + i]
+            : salida[i * canales + 4 + c];
         if (p > mejorP) {
           mejorP = p;
           mejor = c;
         }
       }
       if (mejor < 0 || mejorP < umbral) continue;
-      if (clasesPermitidas != null && !clasesPermitidas!.contains(mejor)) continue;
+      if (clasesPermitidas != null && !clasesPermitidas!.contains(mejor))
+        continue;
 
       final cx = canalPrimero ? salida[i] : salida[i * canales];
       final cy = canalPrimero ? salida[anclas + i] : salida[i * canales + 1];
@@ -125,17 +137,23 @@ class DecodificadorYolo {
       final w = c.w * mult;
       final h = c.h * mult;
       // Del espacio de la entrada (con letterbox) al fotograma, normalizado.
-      final l = ((cx - w / 2 - letterbox.padIzq) / letterbox.escala) / anchoFrame;
-      final t = ((cy - h / 2 - letterbox.padArriba) / letterbox.escala) / altoFrame;
-      final r = ((cx + w / 2 - letterbox.padIzq) / letterbox.escala) / anchoFrame;
-      final b = ((cy + h / 2 - letterbox.padArriba) / letterbox.escala) / altoFrame;
+      final l =
+          ((cx - w / 2 - letterbox.padIzq) / letterbox.escala) / anchoFrame;
+      final t =
+          ((cy - h / 2 - letterbox.padArriba) / letterbox.escala) / altoFrame;
+      final r =
+          ((cx + w / 2 - letterbox.padIzq) / letterbox.escala) / anchoFrame;
+      final b =
+          ((cy + h / 2 - letterbox.padArriba) / letterbox.escala) / altoFrame;
       final caja = CajaDeteccion(
         izq: l.clamp(0.0, 1.0),
         arriba: t.clamp(0.0, 1.0),
         der: r.clamp(0.0, 1.0),
         abajo: b.clamp(0.0, 1.0),
         clase: c.clase,
-        etiqueta: c.clase < etiquetas.length ? etiquetas[c.clase] : 'clase_${c.clase}',
+        etiqueta: c.clase < etiquetas.length
+            ? etiquetas[c.clase]
+            : 'clase_${c.clase}',
         puntaje: c.puntaje,
       );
       if (caja.ancho < 0.02 || caja.alto < 0.02) continue;
@@ -174,17 +192,84 @@ class _Candidato {
 
 /// Las 80 clases COCO en el orden de los canales de YOLOv8.
 const List<String> etiquetasCoco = [
-  'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train',
-  'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign',
-  'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
-  'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag',
-  'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite',
-  'baseball bat', 'baseball glove', 'skateboard', 'surfboard',
-  'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon',
-  'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot',
-  'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 'potted plant',
-  'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote',
-  'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink',
-  'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
-  'hair drier', 'toothbrush',
+  'person',
+  'bicycle',
+  'car',
+  'motorcycle',
+  'airplane',
+  'bus',
+  'train',
+  'truck',
+  'boat',
+  'traffic light',
+  'fire hydrant',
+  'stop sign',
+  'parking meter',
+  'bench',
+  'bird',
+  'cat',
+  'dog',
+  'horse',
+  'sheep',
+  'cow',
+  'elephant',
+  'bear',
+  'zebra',
+  'giraffe',
+  'backpack',
+  'umbrella',
+  'handbag',
+  'tie',
+  'suitcase',
+  'frisbee',
+  'skis',
+  'snowboard',
+  'sports ball',
+  'kite',
+  'baseball bat',
+  'baseball glove',
+  'skateboard',
+  'surfboard',
+  'tennis racket',
+  'bottle',
+  'wine glass',
+  'cup',
+  'fork',
+  'knife',
+  'spoon',
+  'bowl',
+  'banana',
+  'apple',
+  'sandwich',
+  'orange',
+  'broccoli',
+  'carrot',
+  'hot dog',
+  'pizza',
+  'donut',
+  'cake',
+  'chair',
+  'couch',
+  'potted plant',
+  'bed',
+  'dining table',
+  'toilet',
+  'tv',
+  'laptop',
+  'mouse',
+  'remote',
+  'keyboard',
+  'cell phone',
+  'microwave',
+  'oven',
+  'toaster',
+  'sink',
+  'refrigerator',
+  'book',
+  'clock',
+  'vase',
+  'scissors',
+  'teddy bear',
+  'hair drier',
+  'toothbrush',
 ];

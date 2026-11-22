@@ -11,10 +11,7 @@ class PrediccionResiduo {
   final String etiqueta;
   final double confianza;
 
-  const PrediccionResiduo({
-    required this.etiqueta,
-    required this.confianza,
-  });
+  const PrediccionResiduo({required this.etiqueta, required this.confianza});
 }
 
 class ResultadoResiduo {
@@ -30,8 +27,9 @@ class ResultadoResiduo {
 
   /// Diferencia entre la mejor y la segunda mejor puntuación. Un margen bajo
   /// indica que el modelo duda entre dos categorías.
-  double get margen =>
-      alternativas.length < 2 ? confianza : confianza - alternativas[1].confianza;
+  double get margen => alternativas.length < 2
+      ? confianza
+      : confianza - alternativas[1].confianza;
 }
 
 /// Clasificador de material (12 clases). Sigue siendo el modelo original
@@ -49,7 +47,8 @@ class ClasificadorResiduos {
   /// Si el modelo se entrenó con MobileNet/EfficientNet sin capa Rescaling
   /// interna, cambia a `NormalizacionEntrada.menosUnoUno` y compara la
   /// precisión (ver CAMBIOS.md, sección "Cómo verificar la normalización").
-  static const NormalizacionEntrada normalizacion = NormalizacionEntrada.ceroUno;
+  static const NormalizacionEntrada normalizacion =
+      NormalizacionEntrada.ceroUno;
 
   /// Activa el registro de las 3 mejores clases en cada inferencia.
   static const bool registroDetallado = false;
@@ -119,7 +118,11 @@ class ClasificadorResiduos {
     }
     final frame = FrameRgb(tamEntrada, tamEntrada, rgb);
     final tensor = frame.recorteCuadrado(
-      0, 0, 1, 1, tamEntrada,
+      0,
+      0,
+      1,
+      1,
+      tamEntrada,
       margen: 0,
       normalizacion: normalizacion,
     );
@@ -146,10 +149,12 @@ class ClasificadorResiduos {
 
     final mejores = indices
         .take(3)
-        .map((i) => PrediccionResiduo(
-              etiqueta: etiquetas[i],
-              confianza: puntuaciones[i],
-            ))
+        .map(
+          (i) => PrediccionResiduo(
+            etiqueta: etiquetas[i],
+            confianza: puntuaciones[i],
+          ),
+        )
         .toList();
 
     if (kDebugMode && registroDetallado) {

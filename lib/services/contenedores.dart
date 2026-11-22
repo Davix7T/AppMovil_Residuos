@@ -103,36 +103,92 @@ class PerfilObjeto {
 const Map<String, PerfilObjeto> perfilesCoco = {
   // Envases y objetos: el material decide.
   'bottle': PerfilObjeto(
-      'Botella', ContenedorColombia.blanco, ReglaFusion.refinarConMaterial),
+    'Botella',
+    ContenedorColombia.blanco,
+    ReglaFusion.refinarConMaterial,
+  ),
   'wine glass': PerfilObjeto(
-      'Copa', ContenedorColombia.blanco, ReglaFusion.refinarConMaterial),
+    'Copa',
+    ContenedorColombia.blanco,
+    ReglaFusion.refinarConMaterial,
+  ),
   'cup': PerfilObjeto(
-      'Vaso', ContenedorColombia.negro, ReglaFusion.refinarConMaterial),
+    'Vaso',
+    ContenedorColombia.negro,
+    ReglaFusion.refinarConMaterial,
+  ),
   'fork': PerfilObjeto(
-      'Cubierto', ContenedorColombia.negro, ReglaFusion.refinarConMaterial),
+    'Cubierto',
+    ContenedorColombia.negro,
+    ReglaFusion.refinarConMaterial,
+  ),
   'knife': PerfilObjeto(
-      'Cubierto', ContenedorColombia.negro, ReglaFusion.refinarConMaterial),
+    'Cubierto',
+    ContenedorColombia.negro,
+    ReglaFusion.refinarConMaterial,
+  ),
   'spoon': PerfilObjeto(
-      'Cubierto', ContenedorColombia.negro, ReglaFusion.refinarConMaterial),
+    'Cubierto',
+    ContenedorColombia.negro,
+    ReglaFusion.refinarConMaterial,
+  ),
   'book': PerfilObjeto(
-      'Libro / papel', ContenedorColombia.blanco, ReglaFusion.refinarConMaterial),
-  'toothbrush': PerfilObjeto('Cepillo de dientes', ContenedorColombia.negro,
-      ReglaFusion.refinarConMaterial),
+    'Libro / papel',
+    ContenedorColombia.blanco,
+    ReglaFusion.refinarConMaterial,
+  ),
+  'toothbrush': PerfilObjeto(
+    'Cepillo de dientes',
+    ContenedorColombia.negro,
+    ReglaFusion.refinarConMaterial,
+  ),
   // Alimentos: orgánicos aprovechables.
-  'banana': PerfilObjeto('Banano', ContenedorColombia.verde, ReglaFusion.alimento),
-  'apple': PerfilObjeto('Manzana', ContenedorColombia.verde, ReglaFusion.alimento),
-  'orange': PerfilObjeto('Naranja', ContenedorColombia.verde, ReglaFusion.alimento),
-  'broccoli':
-      PerfilObjeto('Brócoli', ContenedorColombia.verde, ReglaFusion.alimento),
-  'carrot':
-      PerfilObjeto('Zanahoria', ContenedorColombia.verde, ReglaFusion.alimento),
-  'sandwich':
-      PerfilObjeto('Sándwich', ContenedorColombia.verde, ReglaFusion.alimento),
-  'hot dog':
-      PerfilObjeto('Perro caliente', ContenedorColombia.verde, ReglaFusion.alimento),
-  'pizza': PerfilObjeto('Pizza', ContenedorColombia.verde, ReglaFusion.alimento),
+  'banana': PerfilObjeto(
+    'Banano',
+    ContenedorColombia.verde,
+    ReglaFusion.alimento,
+  ),
+  'apple': PerfilObjeto(
+    'Manzana',
+    ContenedorColombia.verde,
+    ReglaFusion.alimento,
+  ),
+  'orange': PerfilObjeto(
+    'Naranja',
+    ContenedorColombia.verde,
+    ReglaFusion.alimento,
+  ),
+  'broccoli': PerfilObjeto(
+    'Brócoli',
+    ContenedorColombia.verde,
+    ReglaFusion.alimento,
+  ),
+  'carrot': PerfilObjeto(
+    'Zanahoria',
+    ContenedorColombia.verde,
+    ReglaFusion.alimento,
+  ),
+  'sandwich': PerfilObjeto(
+    'Sándwich',
+    ContenedorColombia.verde,
+    ReglaFusion.alimento,
+  ),
+  'hot dog': PerfilObjeto(
+    'Perro caliente',
+    ContenedorColombia.verde,
+    ReglaFusion.alimento,
+  ),
+  'pizza': PerfilObjeto(
+    'Pizza',
+    ContenedorColombia.verde,
+    ReglaFusion.alimento,
+  ),
   'donut': PerfilObjeto('Dona', ContenedorColombia.verde, ReglaFusion.alimento),
-  'cake': PerfilObjeto('Pastel', ContenedorColombia.verde, ReglaFusion.alimento),
+  'cake': PerfilObjeto(
+    'Pastel',
+    ContenedorColombia.verde,
+    ReglaFusion.alimento,
+  ),
 };
 
 /// Electrónicos (RAEE). Desactivados por defecto: un celular en la mano no es
@@ -140,15 +196,30 @@ const Map<String, PerfilObjeto> perfilesCoco = {
 /// `ConfigAnalizador.incluirElectronicos`.
 const Map<String, PerfilObjeto> perfilesElectronicos = {
   'cell phone': PerfilObjeto(
-      'Celular (RAEE)', ContenedorColombia.especial, ReglaFusion.electronico),
+    'Celular (RAEE)',
+    ContenedorColombia.especial,
+    ReglaFusion.electronico,
+  ),
   'remote': PerfilObjeto(
-      'Control (RAEE)', ContenedorColombia.especial, ReglaFusion.electronico),
+    'Control (RAEE)',
+    ContenedorColombia.especial,
+    ReglaFusion.electronico,
+  ),
   'mouse': PerfilObjeto(
-      'Mouse (RAEE)', ContenedorColombia.especial, ReglaFusion.electronico),
+    'Mouse (RAEE)',
+    ContenedorColombia.especial,
+    ReglaFusion.electronico,
+  ),
   'keyboard': PerfilObjeto(
-      'Teclado (RAEE)', ContenedorColombia.especial, ReglaFusion.electronico),
+    'Teclado (RAEE)',
+    ContenedorColombia.especial,
+    ReglaFusion.electronico,
+  ),
   'laptop': PerfilObjeto(
-      'Portátil (RAEE)', ContenedorColombia.especial, ReglaFusion.electronico),
+    'Portátil (RAEE)',
+    ContenedorColombia.especial,
+    ReglaFusion.electronico,
+  ),
 };
 
 /// Materiales que un objeto "refinable" (botella, vaso...) puede tener.

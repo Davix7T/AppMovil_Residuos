@@ -34,7 +34,7 @@ class YoloDetector {
         ? null
         : {
             for (var i = 0; i < etiquetas.length; i++)
-              if (etiquetasPermitidas!.contains(etiquetas[i])) i
+              if (etiquetasPermitidas!.contains(etiquetas[i])) i,
           },
     umbral: umbral,
   );
@@ -63,8 +63,9 @@ class YoloDetector {
     await _runner.cargar(
       rutaModelo,
       formaEntradaEsperada: [1, tamEntrada, tamEntrada, 3],
-      formaSalidaEsperada:
-          canalPrimero ? [1, _canales, _anclas] : [1, _anclas, _canales],
+      formaSalidaEsperada: canalPrimero
+          ? [1, _canales, _anclas]
+          : [1, _anclas, _canales],
       hilos: hilos,
     );
   }

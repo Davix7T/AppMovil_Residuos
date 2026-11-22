@@ -65,7 +65,7 @@ class FrameRgb {
   final Uint8List rgb;
 
   FrameRgb(this.ancho, this.alto, this.rgb)
-      : assert(rgb.length >= ancho * alto * 3);
+    : assert(rgb.length >= ancho * alto * 3);
 
   /// Desde RGBA (lo que entrega `ui.Image.toByteData(rawRgba)`; Chrome).
   factory FrameRgb.desdeRgba(int ancho, int alto, Uint8List rgba) {

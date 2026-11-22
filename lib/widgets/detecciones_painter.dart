@@ -39,7 +39,8 @@ class DeteccionesPainter extends CustomPainter {
   }
 
   void _dibujarGuia(Canvas canvas, Size size) {
-    final lado = guiaFraccion! * (size.width < size.height ? size.width : size.height);
+    final lado =
+        guiaFraccion! * (size.width < size.height ? size.width : size.height);
     final rect = Rect.fromCenter(
       center: Offset(size.width / 2, size.height / 2),
       width: lado,
@@ -49,7 +50,10 @@ class DeteccionesPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2
       ..color = const Color(0x99FFFFFF);
-    canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(18)), paint);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(18)),
+      paint,
+    );
   }
 
   void _dibujarDeteccion(Canvas canvas, Size size, DeteccionResiduo d) {
@@ -60,7 +64,12 @@ class DeteccionesPainter extends CustomPainter {
       der = size.width - izq;
       izq = t;
     }
-    final rect = Rect.fromLTRB(izq, d.arriba * size.height, der, d.abajo * size.height);
+    final rect = Rect.fromLTRB(
+      izq,
+      d.arriba * size.height,
+      der,
+      d.abajo * size.height,
+    );
     final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(10));
     final color = Color(d.contenedor.colorArgb);
 
@@ -82,7 +91,9 @@ class DeteccionesPainter extends CustomPainter {
         ..color = color,
     );
 
-    final texto = color.computeLuminance() > 0.5 ? const Color(0xFF111827) : Colors.white;
+    final texto = color.computeLuminance() > 0.5
+        ? const Color(0xFF111827)
+        : Colors.white;
     final pct = (d.confianza * 100).round();
     final zona = d.regionCentral ? ' (zona central)' : '';
     final tp = TextPainter(
@@ -90,7 +101,11 @@ class DeteccionesPainter extends CustomPainter {
         children: [
           TextSpan(
             text: '${d.titulo} $pct%$zona\n',
-            style: TextStyle(color: texto, fontSize: 12.5, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: texto,
+              fontSize: 12.5,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           TextSpan(
             text: d.contenedor.nombre,
@@ -111,7 +126,10 @@ class DeteccionesPainter extends CustomPainter {
     var y = rect.top - h - 2;
     if (y < 0) y = rect.top + 2;
 
-    final chip = RRect.fromRectAndRadius(Rect.fromLTWH(x, y, w, h), const Radius.circular(8));
+    final chip = RRect.fromRectAndRadius(
+      Rect.fromLTWH(x, y, w, h),
+      const Radius.circular(8),
+    );
     canvas.drawRRect(chip, Paint()..color = color);
     if (d.contenedor == ContenedorColombia.blanco) {
       canvas.drawRRect(

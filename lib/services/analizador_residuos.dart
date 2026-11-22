@@ -113,19 +113,20 @@ class AnalizadorResiduos {
     this.config = const ConfigAnalizador(),
     ClasificadorResiduos? clasificador,
     YoloDetector? detector,
-  })  : _clasificador = clasificador ?? ClasificadorResiduos(),
-        _perfiles = {
-          ...perfilesCoco,
-          if (config.incluirElectronicos) ...perfilesElectronicos,
-        },
-        _detector = detector ??
-            YoloDetector(
-              umbral: config.umbralDeteccion,
-              etiquetasPermitidas: {
-                ...perfilesCoco.keys,
-                if (config.incluirElectronicos) ...perfilesElectronicos.keys,
-              },
-            );
+  }) : _clasificador = clasificador ?? ClasificadorResiduos(),
+       _perfiles = {
+         ...perfilesCoco,
+         if (config.incluirElectronicos) ...perfilesElectronicos,
+       },
+       _detector =
+           detector ??
+           YoloDetector(
+             umbral: config.umbralDeteccion,
+             etiquetasPermitidas: {
+               ...perfilesCoco.keys,
+               if (config.incluirElectronicos) ...perfilesElectronicos.keys,
+             },
+           );
 
   String get backendDetector => _detector.backend;
   String get backendClasificador => _clasificador.backend;
@@ -144,17 +145,24 @@ class AnalizadorResiduos {
     final ahora = _reloj.elapsedMilliseconds;
 
     // Reclasificar el material de los objetos que lo necesiten (con caché).
-    final pendientes = visibles
-        .where((p) =>
-            _perfiles[p.etiqueta]?.regla == ReglaFusion.refinarConMaterial &&
-            p.fallos == 0 &&
-            p.necesitaClasificar(ahora, config.intervaloClasificacionMs))
-        .toList()
-      ..sort((a, b) => _peso(b).compareTo(_peso(a)));
+    final pendientes =
+        visibles
+            .where(
+              (p) =>
+                  _perfiles[p.etiqueta]?.regla ==
+                      ReglaFusion.refinarConMaterial &&
+                  p.fallos == 0 &&
+                  p.necesitaClasificar(ahora, config.intervaloClasificacionMs),
+            )
+            .toList()
+          ..sort((a, b) => _peso(b).compareTo(_peso(a)));
 
     for (final p in pendientes.take(config.maxObjetosClasificados)) {
       final tensor = frame.recorteCuadrado(
-        p.izq, p.arriba, p.der, p.abajo,
+        p.izq,
+        p.arriba,
+        p.der,
+        p.abajo,
         ClasificadorResiduos.tamEntrada,
         normalizacion: ClasificadorResiduos.normalizacion,
       );
@@ -173,21 +181,25 @@ class AnalizadorResiduos {
         confianzaMaterial: mat?.confianza ?? 0,
         umbralMaterial: config.umbralMaterial,
       );
-      detecciones.add(DeteccionResiduo(
-        id: p.id,
-        izq: p.izq,
-        arriba: p.arriba,
-        der: p.der,
-        abajo: p.abajo,
-        nombre: perfil.nombre,
-        material: decision.materialUsado == null
-            ? null
-            : _clasificador.nombreEnEspanol(decision.materialUsado!),
-        confianza: p.puntaje,
-        confianzaMaterial: decision.materialUsado == null ? null : mat?.confianza,
-        contenedor: decision.contenedor,
-        regionCentral: false,
-      ));
+      detecciones.add(
+        DeteccionResiduo(
+          id: p.id,
+          izq: p.izq,
+          arriba: p.arriba,
+          der: p.der,
+          abajo: p.abajo,
+          nombre: perfil.nombre,
+          material: decision.materialUsado == null
+              ? null
+              : _clasificador.nombreEnEspanol(decision.materialUsado!),
+          confianza: p.puntaje,
+          confianzaMaterial: decision.materialUsado == null
+              ? null
+              : mat?.confianza,
+          contenedor: decision.contenedor,
+          regionCentral: false,
+        ),
+      );
     }
 
     if (config.usarRegionCentral) {
@@ -217,7 +229,8 @@ class AnalizadorResiduos {
     if (ahora - _msUltimaCentral < config.intervaloRegionCentralMs) return;
     _msUltimaCentral = ahora;
 
-    final lado = config.fraccionRegionCentral * math.min(frame.ancho, frame.alto);
+    final lado =
+        config.fraccionRegionCentral * math.min(frame.ancho, frame.alto);
     final mitadX = lado / 2 / frame.ancho;
     final mitadY = lado / 2 / frame.alto;
     final izq = 0.5 - mitadX;
@@ -226,7 +239,10 @@ class AnalizadorResiduos {
     final abajo = 0.5 + mitadY;
 
     final tensor = frame.recorteCuadrado(
-      izq, arriba, der, abajo,
+      izq,
+      arriba,
+      der,
+      abajo,
       ClasificadorResiduos.tamEntrada,
       margen: 0,
       normalizacion: ClasificadorResiduos.normalizacion,
@@ -252,8 +268,10 @@ class AnalizadorResiduos {
     final votos = conteo[dominante]!;
     if (votos.length < 3) return;
 
-    final conf = votos.map((v) => v.confianza).reduce((a, b) => a + b) / votos.length;
-    final margen = votos.map((v) => v.margen).reduce((a, b) => a + b) / votos.length;
+    final conf =
+        votos.map((v) => v.confianza).reduce((a, b) => a + b) / votos.length;
+    final margen =
+        votos.map((v) => v.margen).reduce((a, b) => a + b) / votos.length;
     final minimo = dominante == 'trash' ? 0.85 : config.umbralRegionCentral;
     if (conf < minimo || margen < config.margenMinimoRegionCentral) return;
 

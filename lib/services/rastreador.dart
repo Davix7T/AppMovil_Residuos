@@ -29,13 +29,13 @@ class Pista {
   final List<({String etiqueta, double confianza})> _historialMaterial = [];
 
   Pista(this.id, CajaDeteccion c)
-      : clase = c.clase,
-        etiqueta = c.etiqueta,
-        izq = c.izq,
-        arriba = c.arriba,
-        der = c.der,
-        abajo = c.abajo,
-        puntaje = c.puntaje;
+    : clase = c.clase,
+      etiqueta = c.etiqueta,
+      izq = c.izq,
+      arriba = c.arriba,
+      der = c.der,
+      abajo = c.abajo,
+      puntaje = c.puntaje;
 
   bool get confirmada => aciertos >= 2;
 
@@ -63,7 +63,8 @@ class Pista {
     var mejorMedia = 0.0;
     votos.forEach((k, v) {
       final media = v.reduce((a, b) => a + b) / v.length;
-      if (v.length > mejorVotos || (v.length == mejorVotos && media > mejorMedia)) {
+      if (v.length > mejorVotos ||
+          (v.length == mejorVotos && media > mejorMedia)) {
         mejor = k;
         mejorVotos = v.length;
         mejorMedia = media;
@@ -99,7 +100,16 @@ class Rastreador {
       for (var j = 0; j < cajas.length; j++) {
         final c = cajas[j];
         if (c.clase != p.clase) continue;
-        final iou = iouCajas(p.izq, p.arriba, p.der, p.abajo, c.izq, c.arriba, c.der, c.abajo);
+        final iou = iouCajas(
+          p.izq,
+          p.arriba,
+          p.der,
+          p.abajo,
+          c.izq,
+          c.arriba,
+          c.der,
+          c.abajo,
+        );
         if (iou >= iouMin) pares.add((pista: i, caja: j, iou: iou));
       }
     }
@@ -108,7 +118,8 @@ class Rastreador {
     final pistasUsadas = <int>{};
     final cajasUsadas = <int>{};
     for (final par in pares) {
-      if (pistasUsadas.contains(par.pista) || cajasUsadas.contains(par.caja)) continue;
+      if (pistasUsadas.contains(par.pista) || cajasUsadas.contains(par.caja))
+        continue;
       pistasUsadas.add(par.pista);
       cajasUsadas.add(par.caja);
       final p = _pistas[par.pista];
