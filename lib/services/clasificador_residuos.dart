@@ -1,22 +1,58 @@
-
+import 'dart:math' as math;
 import 'dart:typed_data';
-import 'package:flutter_litert/flutter_litert.dart';
-import 'package:image/image.dart' as img;
-import 'package:flutter/foundation.dart';
 
-class ResultadoResiduo {
+import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as img;
+
+import 'frame_rgb.dart';
+import 'tflite_runner.dart';
+
+class PrediccionResiduo {
   final String etiqueta;
   final double confianza;
 
-  const ResultadoResiduo({
+  const PrediccionResiduo({
     required this.etiqueta,
     required this.confianza,
   });
 }
 
+class ResultadoResiduo {
+  final String etiqueta;
+  final double confianza;
+  final List<PrediccionResiduo> alternativas;
+
+  const ResultadoResiduo({
+    required this.etiqueta,
+    required this.confianza,
+    this.alternativas = const [],
+  });
+
+  /// Diferencia entre la mejor y la segunda mejor puntuación. Un margen bajo
+  /// indica que el modelo duda entre dos categorías.
+  double get margen =>
+      alternativas.length < 2 ? confianza : confianza - alternativas[1].confianza;
+}
+
+/// Clasificador de material (12 clases). Sigue siendo el modelo original
+/// `waste_model.tflite`, pero ahora:
+///  * se usa sobre el RECORTE de cada objeto detectado (no sobre todo el
+///    fotograma), que es la causa principal de las etiquetas incorrectas;
+///  * se ejecuta con buffers planos (Float32List) en lugar de listas
+///    anidadas, y fuera del hilo de la UI en Android;
+///  * si el modelo entrega logits en vez de probabilidades, se aplica softmax.
 class ClasificadorResiduos {
-  static const String rutaModelo =
-      'assets/models/waste_model.tflite';
+  static const String rutaModelo = 'assets/models/waste_model.tflite';
+  static const int tamEntrada = 224;
+
+  /// Normalización de entrada. El código original usaba /255 -> [0, 1].
+  /// Si el modelo se entrenó con MobileNet/EfficientNet sin capa Rescaling
+  /// interna, cambia a `NormalizacionEntrada.menosUnoUno` y compara la
+  /// precisión (ver CAMBIOS.md, sección "Cómo verificar la normalización").
+  static const NormalizacionEntrada normalizacion = NormalizacionEntrada.ceroUno;
+
+  /// Activa el registro de las 3 mejores clases en cada inferencia.
+  static const bool registroDetallado = false;
 
   static const List<String> etiquetas = [
     'battery',
@@ -33,122 +69,132 @@ class ClasificadorResiduos {
     'white-glass',
   ];
 
-  Interpreter? _interpreter;
+  final TfliteRunner _runner = crearRunner();
+  final Float32List _salida = Float32List(etiquetas.length);
 
-  bool get modeloCargado => _interpreter != null;
+  Future<void> _cola = Future.value();
+
+  bool get modeloCargado => _runner.cargado;
+
+  String get backend => _runner.backend;
 
   Future<void> cargarModelo() async {
-    if (_interpreter != null) return;
-
-    await initializeWeb();
-
-    final interpreter =
-        await Interpreter.fromAsset(rutaModelo);
-
-    interpreter.allocateTensors();
-
-    final entrada = interpreter.getInputTensor(0);
-    final salida = interpreter.getOutputTensor(0);
-
-    if (entrada.shape.toString() != '[1, 224, 224, 3]' ||
-        salida.shape.toString() != '[1, 12]') {
-      interpreter.close();
-      throw StateError(
-        'Las dimensiones del modelo no coinciden '
-        'con las esperadas.',
-      );
-    }
-
-    _interpreter = interpreter;
+    if (_runner.cargado) return;
+    await _runner.cargar(
+      rutaModelo,
+      formaEntradaEsperada: const [1, tamEntrada, tamEntrada, 3],
+      formaSalidaEsperada: [1, etiquetas.length],
+      hilos: 2,
+    );
   }
 
-  ResultadoResiduo clasificarImagen(Uint8List bytes) {
-    final interpreter = _interpreter;
-
-    if (interpreter == null) {
-      throw StateError(
-        'Primero debes cargar el modelo.',
-      );
+  /// Clasifica una imagen completa (flujo "tomar foto / galería").
+  /// Mantiene el redimensionamiento original (224 x 224 estirado), que es el
+  /// que usó el entrenamiento del modelo. Ahora es asíncrono.
+  Future<ResultadoResiduo> clasificarImagen(Uint8List bytes) async {
+    if (!_runner.cargado) {
+      throw StateError('Primero debes cargar el modelo.');
     }
 
     final img.Image? imagenOriginal = img.decodeImage(bytes);
-
     if (imagenOriginal == null) {
-      throw FormatException(
-        'No se pudo leer la imagen seleccionada.',
-      );
+      throw const FormatException('No se pudo leer la imagen seleccionada.');
     }
 
-    final img.Image imagenRedimensionada = img.copyResize(
+    final img.Image redim = img.copyResize(
       imagenOriginal,
-      width: 224,
-      height: 224,
+      width: tamEntrada,
+      height: tamEntrada,
     );
 
-    final entrada = [
-      List.generate(
-        224,
-        (y) => List.generate(
-          224,
-          (x) {
-            final pixel = imagenRedimensionada.getPixel(x, y);
-
-            return [
-              pixel.r.toDouble() / 255.0,
-              pixel.g.toDouble() / 255.0,
-              pixel.b.toDouble() / 255.0,
-            ];
-          },
-        ),
-      ),
-    ];
-
-    final salida = [
-      List<double>.filled(etiquetas.length, 0.0),
-    ];
-
-    interpreter.run(entrada, salida);
-
-    final puntuaciones = salida[0];
-
-    final indices = List.generate(
-      puntuaciones.length,
-      (i) => i,
-    )..sort(
-        (a, b) => puntuaciones[b].compareTo(puntuaciones[a]),
-      );
-
-    debugPrint('--- RESULTADOS DEL MODELO ---');
-    debugPrint(
-      'Suma de puntuaciones: '
-      '${puntuaciones.reduce((a, b) => a + b)}',
-    );
-
-    for (final i in indices.take(3)) {
-      debugPrint(
-        '${etiquetas[i]}: '
-        '${(puntuaciones[i] * 100).toStringAsFixed(2)}%',
-      );
+    final rgb = Uint8List(tamEntrada * tamEntrada * 3);
+    var i = 0;
+    for (var y = 0; y < tamEntrada; y++) {
+      for (var x = 0; x < tamEntrada; x++) {
+        final p = redim.getPixel(x, y);
+        rgb[i++] = p.r.toInt();
+        rgb[i++] = p.g.toInt();
+        rgb[i++] = p.b.toInt();
+      }
     }
+    final frame = FrameRgb(tamEntrada, tamEntrada, rgb);
+    final tensor = frame.recorteCuadrado(
+      0, 0, 1, 1, tamEntrada,
+      margen: 0,
+      normalizacion: normalizacion,
+    );
+    return clasificarTensor(tensor);
+  }
 
-    int indiceMayor = 0;
+  /// Clasifica un recorte ya preparado (tamEntrada x tamEntrada x 3, NHWC,
+  /// normalizado). Lo usa el analizador en vivo con el recorte de cada objeto.
+  Future<ResultadoResiduo> clasificarTensor(Float32List entrada) {
+    return _enCola(() async {
+      if (!_runner.cargado) {
+        throw StateError('Primero debes cargar el modelo.');
+      }
+      await _runner.ejecutar(entrada, _salida);
+      return _interpretar(_salida);
+    });
+  }
 
-    for (int i = 1; i < puntuaciones.length; i++) {
-      if (puntuaciones[i] > puntuaciones[indiceMayor]) {
-        indiceMayor = i;
+  ResultadoResiduo _interpretar(Float32List cruda) {
+    final puntuaciones = _aProbabilidades(cruda);
+
+    final indices = List<int>.generate(puntuaciones.length, (i) => i)
+      ..sort((a, b) => puntuaciones[b].compareTo(puntuaciones[a]));
+
+    final mejores = indices
+        .take(3)
+        .map((i) => PrediccionResiduo(
+              etiqueta: etiquetas[i],
+              confianza: puntuaciones[i],
+            ))
+        .toList();
+
+    if (kDebugMode && registroDetallado) {
+      debugPrint('--- RESULTADOS DEL MODELO ---');
+      for (final p in mejores) {
+        debugPrint('${p.etiqueta}: ${(p.confianza * 100).toStringAsFixed(2)}%');
       }
     }
 
     return ResultadoResiduo(
-      etiqueta: etiquetas[indiceMayor],
-      confianza: puntuaciones[indiceMayor],
+      etiqueta: mejores.first.etiqueta,
+      confianza: mejores.first.confianza,
+      alternativas: mejores,
     );
   }
 
-  void cerrar() {
-    _interpreter?.close();
-    _interpreter = null;
+  /// Si la salida ya son probabilidades (en [0,1] y suman ~1) se usa tal
+  /// cual; si son logits, se aplica softmax. Sin esto, un modelo sin softmax
+  /// final mostraría "confianzas" mayores a 100 % o negativas.
+  static List<double> _aProbabilidades(Float32List s) {
+    var suma = 0.0;
+    var enRango = true;
+    for (final v in s) {
+      if (v < 0 || v > 1) enRango = false;
+      suma += v;
+    }
+    if (enRango && (suma - 1).abs() < 0.05) {
+      return List<double>.generate(s.length, (i) => s[i].toDouble());
+    }
+    var maxV = s[0].toDouble();
+    for (final v in s) {
+      if (v > maxV) maxV = v.toDouble();
+    }
+    final exps = [for (final v in s) math.exp(v - maxV)];
+    final total = exps.reduce((a, b) => a + b);
+    return [for (final e in exps) e / total];
   }
+
+  Future<T> _enCola<T>(Future<T> Function() tarea) {
+    final r = _cola.then((_) => tarea());
+    _cola = r.then<void>((_) {}, onError: (_) {});
+    return r;
+  }
+
+  Future<void> cerrar() => _runner.cerrar();
 
   String nombreEnEspanol(String etiqueta) {
     const traducciones = {

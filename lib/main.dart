@@ -1,4 +1,3 @@
-
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -170,7 +169,7 @@ class _EcoHomeState extends State<EcoHome> {
 
     try {
       final resultadoObtenido =
-          clasificador.clasificarImagen(imagen!);
+          await clasificador.clasificarImagen(imagen!);
 
       if (!mounted) return;
 

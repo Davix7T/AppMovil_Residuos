@@ -95,3 +95,4 @@ flutter:
 
   assets:
     - assets/models/waste_model.tflite
+    - assets/models/yolov8n_float32.tflite
