@@ -118,8 +118,9 @@ class Rastreador {
     final pistasUsadas = <int>{};
     final cajasUsadas = <int>{};
     for (final par in pares) {
-      if (pistasUsadas.contains(par.pista) || cajasUsadas.contains(par.caja))
+      if (pistasUsadas.contains(par.pista) || cajasUsadas.contains(par.caja)) {
         continue;
+      }
       pistasUsadas.add(par.pista);
       cajasUsadas.add(par.caja);
       final p = _pistas[par.pista];

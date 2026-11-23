@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/services/frame_rgb.dart';
-import '../lib/services/yolo_decoder.dart';
+import 'package:app_movil/services/frame_rgb.dart';
+import 'package:app_movil/services/yolo_decoder.dart';
 
 const int anclas = 10;
 const int canales = 84;

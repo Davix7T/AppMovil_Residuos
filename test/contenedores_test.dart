@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/services/contenedores.dart';
+import 'package:app_movil/services/contenedores.dart';
 
 void main() {
   group('contenedorPorMaterial', () {

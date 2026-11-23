@@ -1,12 +1,15 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'camara_en_vivo.dart';
 import 'services/clasificador_residuos.dart';
+import 'services/generador_consejos.dart';
+import 'services/recomendador_habitos.dart';
 
 void main() => runApp(const EcoSoftApp());
 
@@ -99,6 +102,8 @@ class EcoHome extends StatefulWidget {
 class _EcoHomeState extends State<EcoHome> {
   final ImagePicker picker = ImagePicker();
   final ClasificadorResiduos clasificador = ClasificadorResiduos();
+  final GeneradorConsejosLocal generadorConsejos =
+      crearGeneradorConsejosLocal();
   final List<EcoRegistro> historial = [];
 
   int pagina = 0;
@@ -109,11 +114,17 @@ class _EcoHomeState extends State<EcoHome> {
   ResultadoResiduo? resultado;
   String filtroHistorial = 'Todos';
   String busquedaHistorial = '';
+  String? consejoGeneradoIA;
+  bool consejoGeneradoPorIA = false;
+  bool generandoConsejoIA = false;
+  bool importandoModeloConsejos = false;
+  bool modeloConsejosDisponible = false;
 
   @override
   void initState() {
     super.initState();
     cargarHistorial();
+    verificarModeloConsejos();
   }
 
   @override
@@ -274,6 +285,8 @@ class _EcoHomeState extends State<EcoHome> {
           confianza: actual.confianza,
         ),
       );
+      consejoGeneradoIA = null;
+      consejoGeneradoPorIA = false;
       imagen = null;
       nombreImagen = '';
       resultado = null;
@@ -304,8 +317,113 @@ class _EcoHomeState extends State<EcoHome> {
       ),
     );
     if (confirmar != true || !mounted) return;
-    setState(() => historial.remove(registro));
+    setState(() {
+      historial.remove(registro);
+      consejoGeneradoIA = null;
+      consejoGeneradoPorIA = false;
+    });
     await guardarHistorialLocal();
+  }
+
+  Future<void> generarConsejoIA(AnalisisHabitos analisis) async {
+    if (generandoConsejoIA ||
+        analisis.consejo.isEmpty ||
+        !generadorConsejos.soportado ||
+        !modeloConsejosDisponible) {
+      return;
+    }
+
+    setState(() {
+      generandoConsejoIA = true;
+      consejoGeneradoIA = null;
+      consejoGeneradoPorIA = false;
+    });
+
+    try {
+      final resultado = await generadorConsejos.generarConsejo(
+        analisis,
+        onProgress: (_, _) {},
+      );
+      if (!mounted) return;
+      setState(() {
+        consejoGeneradoIA = resultado.texto;
+        consejoGeneradoPorIA = resultado.generadoPorIA;
+      });
+      if (!resultado.generadoPorIA) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'El modelo no produjo una respuesta útil. Se muestra la sugerencia personalizada de respaldo.'
+              '${resultado.motivoRespaldo == null ? '' : ' Motivo: ${resultado.motivoRespaldo}'}',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        consejoGeneradoIA = construirConsejoPersonalizado(analisis);
+        consejoGeneradoPorIA = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'No se pudo generar el consejo con IA local. Se muestra una sugerencia personalizada de respaldo. ($e)',
+          ),
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => generandoConsejoIA = false);
+      }
+    }
+  }
+
+  Future<void> verificarModeloConsejos() async {
+    try {
+      final disponible = await generadorConsejos.modeloInstalado;
+      if (mounted) setState(() => modeloConsejosDisponible = disponible);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo comprobar el modelo local: $e')),
+      );
+    }
+  }
+
+  Future<void> importarModeloGemma() async {
+    if (importandoModeloConsejos || generandoConsejoIA) return;
+
+    try {
+      final seleccion = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['litertlm'],
+      );
+      if (seleccion.isEmpty) return;
+      final ruta = seleccion.single.path;
+      if (ruta == null) {
+        throw StateError('No se pudo acceder al archivo seleccionado.');
+      }
+
+      setState(() => importandoModeloConsejos = true);
+      await generadorConsejos.importarModelo(ruta);
+      if (!mounted) return;
+      setState(() => modeloConsejosDisponible = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Modelo Gemma importado correctamente.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo importar el modelo Gemma: $e'),
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => importandoModeloConsejos = false);
+    }
   }
 
   void abrirDetalle(EcoRegistro registro) {
@@ -326,7 +444,7 @@ class _EcoHomeState extends State<EcoHome> {
                   width: double.infinity,
                   height: 220,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const SizedBox(
+                  errorBuilder: (_, _, _) => const SizedBox(
                     height: 160,
                     child: Center(child: Icon(Icons.image_not_supported)),
                   ),
@@ -912,7 +1030,7 @@ class _EcoHomeState extends State<EcoHome> {
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
-          value: filtroHistorial,
+          initialValue: filtroHistorial,
           decoration: InputDecoration(
             labelText: 'Filtrar por contenedor',
             filled: true,
@@ -961,7 +1079,7 @@ class _EcoHomeState extends State<EcoHome> {
                     width: 56,
                     height: 56,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox(
+                    errorBuilder: (_, _, _) => const SizedBox(
                       width: 56,
                       height: 56,
                       child: Icon(Icons.image_not_supported),
@@ -997,6 +1115,15 @@ class _EcoHomeState extends State<EcoHome> {
 
   Widget _estadisticasPage() {
     final total = historial.length;
+    final analisisHabitos = const RecomendadorHabitos().analizar(
+      historial.map(
+        (registro) => RegistroParaRecomendacion(
+          etiqueta: registro.etiqueta,
+          nombre: registro.nombre,
+          fecha: registro.fecha,
+        ),
+      ),
+    );
     final blanco = historial
         .where((r) => r.contenedor == 'Contenedor blanco')
         .length;
@@ -1054,6 +1181,8 @@ class _EcoHomeState extends State<EcoHome> {
             ),
           ],
         ),
+        const SizedBox(height: 16),
+        _tarjetaRecomendacion(analisisHabitos),
         const SizedBox(height: 20),
         const Text(
           'Distribución por contenedor',
@@ -1136,7 +1265,7 @@ class _EcoHomeState extends State<EcoHome> {
                               value: cantidad == 0
                                   ? 0
                                   : cantidad /
-                                        (historial.length == 0
+                                        (historial.isEmpty
                                             ? 1
                                             : historial.length),
                               minHeight: 9,
@@ -1165,6 +1294,157 @@ class _EcoHomeState extends State<EcoHome> {
       ],
     );
   }
+
+  Widget _tarjetaRecomendacion(AnalisisHabitos analisis) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.lightbulb_outline, color: verde),
+              SizedBox(width: 8),
+              Text(
+                'Recomendación personalizada',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            analisis.titulo,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 5),
+          Text(analisis.resumen),
+          if (analisis.consejo.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text('Sugerencia: ${analisis.consejo}'),
+          ],
+          if (analisis.tendencia != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              analisis.tendencia!,
+              style: const TextStyle(color: Colors.black54),
+            ),
+          ],
+          if (consejoGeneradoIA != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    consejoGeneradoPorIA
+                        ? 'Consejo generado por IA local'
+                        : 'Sugerencia personalizada de respaldo',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(consejoGeneradoIA!),
+                  if (!consejoGeneradoPorIA) ...[
+                    const SizedBox(height: 5),
+                    const Text(
+                      'Se basa en la categoría más frecuente de tu historial.',
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          if (generadorConsejos.soportado) ...[
+            const SizedBox(height: 12),
+            FilledButton.tonalIcon(
+              onPressed: importandoModeloConsejos || generandoConsejoIA
+                  ? null
+                  : importarModeloGemma,
+              icon: importandoModeloConsejos
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.file_open_outlined),
+              label: Text(
+                importandoModeloConsejos
+                    ? 'Importando Gemma...'
+                    : modeloConsejosDisponible
+                    ? 'Cambiar modelo Gemma 3 1B IT'
+                    : 'Importar modelo Gemma 3 1B IT',
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              modeloConsejosDisponible
+                  ? 'Gemma 3 1B IT está instalado y funciona sin conexión.'
+                  : 'Descarga el archivo de unos 557 MiB. Primero acepta la licencia de Gemma en $urlLicenciaModeloConsejos, luego descarga $urlDescargaModeloConsejos y selecciónalo aquí.',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.black54,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            FilledButton.tonalIcon(
+              onPressed:
+                  generandoConsejoIA ||
+                      importandoModeloConsejos ||
+                      !modeloConsejosDisponible ||
+                      analisis.consejo.isEmpty
+                  ? null
+                  : () => generarConsejoIA(analisis),
+              icon: generandoConsejoIA
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_awesome),
+              label: Text(
+                generandoConsejoIA
+                    ? 'Generando consejo...'
+                    : 'Generar consejo con IA generativa',
+              ),
+            ),
+            if (generandoConsejoIA) ...[
+              const SizedBox(height: 6),
+              const LinearProgressIndicator(),
+              const SizedBox(height: 4),
+              Text(
+                'Cargando Gemma 3 1B IT en el dispositivo...',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+            const SizedBox(height: 4),
+            const Text(
+              'El consejo se genera en el dispositivo usando solo el resumen de hábitos; las fotos no se envían.',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ] else
+            const Padding(
+              padding: EdgeInsets.only(top: 10),
+              child: Text(
+                'La generación local con IA está disponible en Android.',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ),
+          const SizedBox(height: 10),
+          const Text(
+            'El modelo local solo recibe un resumen del historial; las fotos permanecen en el dispositivo. Verifica las reglas de separación de tu localidad.',
+            style: TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+        ],
+      ),
+    ),
+  );
 
   Widget _estadisticaTarjeta(String titulo, String valor, IconData icono) =>
       Card(

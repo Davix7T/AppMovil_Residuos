@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/services/rastreador.dart';
-import '../lib/services/yolo_decoder.dart';
+import 'package:app_movil/services/rastreador.dart';
+import 'package:app_movil/services/yolo_decoder.dart';
 
 CajaDeteccion caja(double x, double y, {int clase = 39, double p = 0.8}) =>
     CajaDeteccion(

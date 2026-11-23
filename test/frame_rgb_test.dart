@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/services/frame_rgb.dart';
+import 'package:app_movil/services/frame_rgb.dart';
 
 void main() {
   // Sensor 4x2 con valores de luminancia distintos; U = V = 128 -> gris puro.
