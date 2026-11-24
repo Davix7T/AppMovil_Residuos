@@ -113,8 +113,9 @@ class DecodificadorYolo {
         }
       }
       if (mejor < 0 || mejorP < umbral) continue;
-      if (clasesPermitidas != null && !clasesPermitidas!.contains(mejor))
+      if (clasesPermitidas != null && !clasesPermitidas!.contains(mejor)) {
         continue;
+      }
 
       final cx = canalPrimero ? salida[i] : salida[i * canales];
       final cy = canalPrimero ? salida[anclas + i] : salida[i * canales + 1];

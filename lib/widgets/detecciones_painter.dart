@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../services/analizador_residuos.dart';
 import '../services/contenedores.dart';
